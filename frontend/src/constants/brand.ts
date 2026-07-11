@@ -1,0 +1,5 @@
+export const CHID_TEXT = '#020731'
+export const CHID_BTN = '#082F9B'
+export const CHID_BTN_HOVER = '#062A85'
+export const CHID_ACCENT = '#DFB286'
+export const CHID_WHITE = '#FFFFFF'
