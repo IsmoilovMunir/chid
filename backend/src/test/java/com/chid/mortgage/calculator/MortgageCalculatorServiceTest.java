@@ -60,6 +60,23 @@ class MortgageCalculatorServiceTest {
     }
 
     @Test
+    void loanAmount_prefersExplicitAmountOverPropertyPrice() {
+        MortgageCalculationRequest request = new MortgageCalculationRequest();
+        request.setMode(CalculationMode.PAYMENT);
+        request.setPropertyPrice(new BigDecimal("16770000"));
+        request.setDownPayment(new BigDecimal("3354000"));
+        request.setDownPaymentType("AMOUNT");
+        request.setLoanAmount(new BigDecimal("12074400"));
+        request.setTermMonths(240);
+        request.setInterestRate(new BigDecimal("20"));
+        request.setPaymentType(PaymentType.ANNUITY);
+
+        MortgageCalculationResponse response = service.calculate(request);
+
+        assertEquals(0, response.getLoanAmount().compareTo(new BigDecimal("12074400")));
+    }
+
+    @Test
     void loanAmount_rejectsDownPaymentGreaterThanPrice() {
         MortgageCalculationRequest request = new MortgageCalculationRequest();
         request.setMode(CalculationMode.PAYMENT);

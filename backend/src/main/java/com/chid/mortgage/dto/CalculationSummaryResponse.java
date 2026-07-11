@@ -15,6 +15,7 @@ public class CalculationSummaryResponse {
     private Long clientId;
     private String clientName;
     private String title;
+    private String propertyUrl;
     private CalculationMode mode;
     private PaymentType paymentType;
     private BigDecimal loanAmount;

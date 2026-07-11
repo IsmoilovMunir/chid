@@ -46,11 +46,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/calculator/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/leads").permitAll()
                         .requestMatchers("/api/calculations/public/**").permitAll()
-                        .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

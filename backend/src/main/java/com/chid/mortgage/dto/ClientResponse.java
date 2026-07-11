@@ -20,4 +20,5 @@ public class ClientResponse {
     private Long assignedUserId;
     private String assignedUserName;
     private Instant createdAt;
+    private Instant updatedAt;
 }

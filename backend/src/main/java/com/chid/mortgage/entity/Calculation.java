@@ -40,6 +40,10 @@ public class Calculation {
     @Column(nullable = false)
     private BigDecimal loanAmount;
 
+    private BigDecimal baseLoanAmount;
+    private BigDecimal discountAmount;
+    private BigDecimal discountPercent;
+
     @Column(nullable = false)
     private Integer termMonths;
 
@@ -59,6 +63,9 @@ public class Calculation {
     private String scheduleJson;
 
     private String title;
+
+    @Column(length = 2000)
+    private String propertyUrl;
 
     @Column(length = 500)
     private String comment;

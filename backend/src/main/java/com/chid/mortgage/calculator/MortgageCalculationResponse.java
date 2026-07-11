@@ -19,6 +19,11 @@ public class MortgageCalculationResponse {
     private Integer termMonths;
     private BigDecimal interestRate;
 
+    /** Сумма кредита до скидки (договор с ЖК) */
+    private BigDecimal baseLoanAmount;
+    private BigDecimal discountAmount;
+    private BigDecimal discountPercent;
+
     private BigDecimal monthlyPayment;
     private BigDecimal firstMonthlyPayment;
     private BigDecimal lastMonthlyPayment;

@@ -12,26 +12,40 @@
 ```
 chid/
 ├── backend/     # Spring Boot API
-├── frontend/    # React UI
+├── frontend/    # Публичный калькулятор (chid.ru)
+├── crm/         # CRM для риелторов (crm.chid.ru)
 └── docker-compose.yml
 ```
 
 ## Быстрый старт
 
-### 1. PostgreSQL (опционально, для prod)
+### 1. PostgreSQL
 
 ```bash
 docker compose up -d
 ```
 
+БД: `chid_mortgage`, пользователь/пароль: `chid` / `chid`, порт: **5433** (чтобы не конфликтовать с другим PostgreSQL на 5432).  
+Схема применяется автоматически через **Liquibase** при старте backend.
+
 ### 2. Backend
 
 Требуется **Java 21** (Lombok не работает с Java 25).
+
+**IntelliJ IDEA:** откройте папку `backend` (или корень `chid` и дождитесь импорта Maven).
+- Project SDK: **Java 21**
+- Maven → Reload Project
+- Settings → Build → Compiler → Annotation Processors → **Enable**
 
 ```bash
 cd backend
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # macOS
 ./mvnw-local.sh spring-boot:run
+```
+
+Проверка сборки:
+```bash
+cd backend && ./mvnw-local.sh compile
 ```
 
 API: http://localhost:8080
@@ -50,6 +64,28 @@ npm run dev
 
 UI: http://localhost:5173
 
+### 4. CRM (отдельное приложение)
+
+```bash
+cd crm
+npm install
+npm run dev
+```
+
+CRM UI: http://localhost:5174  
+Домен prod: **crm.chid.ru**
+
+**CRM — расчёты:**
+- `/calculations/new` — калькулятор + сохранение в CRM
+- `/calculations/:id` — карточка расчёта + публичная ссылка
+- Публичная ссылка для клиента: `https://chid.ru/calc/{token}`
+
+Переменная для CRM (опционально):
+```bash
+# crm/.env
+VITE_PUBLIC_SITE_URL=https://chid.ru
+```
+
 ## API
 
 | Метод | Endpoint | Доступ |
@@ -58,17 +94,21 @@ UI: http://localhost:5173
 | POST | `/api/auth/login` | Публичный |
 | POST | `/api/leads` | Публичный |
 | GET/POST | `/api/clients` | Авторизация |
+| GET | `/api/calculations/{id}` | Авторизация |
 | GET/POST | `/api/calculations` | Авторизация |
 | GET | `/api/calculations/public/{token}` | Публичный |
 
 ## Профили Spring
 
-- `dev` (по умолчанию) — H2 in-memory, тестовые пользователи
-- `prod` — PostgreSQL
+- `dev` (по умолчанию) — PostgreSQL + Liquibase, тестовые пользователи
+- `prod` — PostgreSQL + Liquibase
 
 ```bash
 SPRING_PROFILES_ACTIVE=prod ./mvnw-local.sh spring-boot:run
 ```
+
+Миграции: `backend/src/main/resources/db/changelog/`.  
+Новые изменения схемы — отдельный файл в `changes/` и `include` в `db.changelog-master.yaml`.
 
 ## Этапы MVP
 
@@ -78,5 +118,6 @@ SPRING_PROFILES_ACTIVE=prod ./mvnw-local.sh spring-boot:run
 - [x] JWT авторизация
 - [x] CRM: клиенты + расчёты
 - [x] Лид-форма
-- [ ] PDF-экспорт
+- [x] CRM UI (логин, клиенты, расчёты) — `crm/`
+- [x] PDF-экспорт (CRM: карточка расчёта)
 - [ ] Деплой на домен CHID

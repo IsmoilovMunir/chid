@@ -1,16 +1,11 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:chid;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/chid_mortgage}
+    username: ${DATABASE_USER:chid}
+    password: ${DATABASE_PASSWORD:chid}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:

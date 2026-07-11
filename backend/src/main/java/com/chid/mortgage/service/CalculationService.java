@@ -2,6 +2,8 @@ package com.chid.mortgage.service;
 
 import com.chid.mortgage.calculator.MortgageCalculationResponse;
 import com.chid.mortgage.calculator.MortgageCalculatorService;
+import com.chid.mortgage.dto.CalculationDetailResponse;
+import com.chid.mortgage.dto.PublicCalculationResponse;
 import com.chid.mortgage.dto.CalculationSummaryResponse;
 import com.chid.mortgage.dto.SaveCalculationRequest;
 import com.chid.mortgage.entity.Calculation;
@@ -17,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,7 +35,7 @@ public class CalculationService {
 
     @Transactional
     public CalculationSummaryResponse save(SaveCalculationRequest request) {
-        MortgageCalculationResponse result = calculatorService.calculate(request.getCalculation());
+        MortgageCalculationResponse result = calculateAndEnrich(request);
         User currentUser = getCurrentUser();
 
         Client client = null;
@@ -47,6 +50,9 @@ public class CalculationService {
                 .propertyPrice(result.getPropertyPrice())
                 .downPayment(result.getDownPayment())
                 .loanAmount(result.getLoanAmount())
+                .baseLoanAmount(result.getBaseLoanAmount())
+                .discountAmount(result.getDiscountAmount())
+                .discountPercent(result.getDiscountPercent())
                 .termMonths(result.getTermMonths())
                 .interestRate(result.getInterestRate())
                 .paymentType(result.getPaymentType())
@@ -57,11 +63,70 @@ public class CalculationService {
                 .resultOverpayment(result.getOverpayment())
                 .scheduleJson(toJson(result))
                 .title(request.getTitle())
+                .propertyUrl(request.getPropertyUrl())
                 .comment(request.getComment())
                 .publicToken(UUID.randomUUID().toString())
                 .build();
 
         return toSummary(calculationRepository.save(calculation));
+    }
+
+    @Transactional
+    public CalculationSummaryResponse update(Long id, SaveCalculationRequest request) {
+        Calculation calculation = getAccessibleCalculation(id);
+        MortgageCalculationResponse result = calculateAndEnrich(request);
+
+        Client client = null;
+        if (request.getClientId() != null) {
+            client = clientService.getAccessibleClient(request.getClientId());
+        }
+
+        calculation.setClient(client);
+        calculation.setMode(result.getMode());
+        calculation.setPropertyPrice(result.getPropertyPrice());
+        calculation.setDownPayment(result.getDownPayment());
+        calculation.setLoanAmount(result.getLoanAmount());
+        calculation.setBaseLoanAmount(result.getBaseLoanAmount());
+        calculation.setDiscountAmount(result.getDiscountAmount());
+        calculation.setDiscountPercent(result.getDiscountPercent());
+        calculation.setTermMonths(result.getTermMonths());
+        calculation.setInterestRate(result.getInterestRate());
+        calculation.setPaymentType(result.getPaymentType());
+        calculation.setResultMonthlyPayment(result.getMonthlyPayment() != null
+                ? result.getMonthlyPayment()
+                : result.getFirstMonthlyPayment());
+        calculation.setResultTotalInterest(result.getTotalInterest());
+        calculation.setResultOverpayment(result.getOverpayment());
+        calculation.setScheduleJson(toJson(result));
+        calculation.setTitle(request.getTitle());
+        calculation.setPropertyUrl(request.getPropertyUrl());
+        calculation.setComment(request.getComment());
+
+        return toSummary(calculationRepository.save(calculation));
+    }
+
+    @Transactional(readOnly = true)
+    public CalculationDetailResponse findById(Long id) {
+        Calculation calculation = getAccessibleCalculation(id);
+        return CalculationDetailResponse.builder()
+                .id(calculation.getId())
+                .clientId(calculation.getClient() != null ? calculation.getClient().getId() : null)
+                .clientName(calculation.getClient() != null ? calculation.getClient().getFullName() : null)
+                .title(calculation.getTitle())
+                .propertyUrl(calculation.getPropertyUrl())
+                .comment(calculation.getComment())
+                .publicToken(calculation.getPublicToken())
+                .createdAt(calculation.getCreatedAt())
+                .result(fromJson(calculation.getScheduleJson()))
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CalculationSummaryResponse> findByClientId(Long clientId) {
+        Client client = clientService.getAccessibleClient(clientId);
+        return calculationRepository.findByClientOrderByCreatedAtDesc(client).stream()
+                .map(this::toSummary)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -74,10 +139,51 @@ public class CalculationService {
     }
 
     @Transactional(readOnly = true)
-    public MortgageCalculationResponse findByPublicToken(String token) {
+    public PublicCalculationResponse findByPublicToken(String token) {
         Calculation calculation = calculationRepository.findByPublicToken(token)
                 .orElseThrow(() -> new IllegalArgumentException("Расчёт не найден"));
-        return fromJson(calculation.getScheduleJson());
+        return PublicCalculationResponse.builder()
+                .clientName(calculation.getClient() != null ? calculation.getClient().getFullName() : null)
+                .title(calculation.getTitle())
+                .propertyUrl(calculation.getPropertyUrl())
+                .result(fromJson(calculation.getScheduleJson()))
+                .build();
+    }
+
+    private Calculation getAccessibleCalculation(Long id) {
+        Calculation calculation = calculationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Расчёт не найден"));
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getRole() != UserRole.ADMIN
+                && (calculation.getCreatedBy() == null
+                || !calculation.getCreatedBy().getId().equals(currentUser.getId()))) {
+            throw new IllegalArgumentException("Нет доступа к расчёту");
+        }
+
+        return calculation;
+    }
+
+    private MortgageCalculationResponse calculateAndEnrich(SaveCalculationRequest request) {
+        MortgageCalculationResponse result = calculatorService.calculate(request.getCalculation());
+        enrichWithDiscount(result, request);
+        return result;
+    }
+
+    private void enrichWithDiscount(MortgageCalculationResponse result, SaveCalculationRequest request) {
+        BigDecimal discountAmount = request.getDiscountAmount() != null
+                ? request.getDiscountAmount()
+                : BigDecimal.ZERO;
+        BigDecimal discountPercent = request.getDiscountPercent() != null
+                ? request.getDiscountPercent()
+                : BigDecimal.ZERO;
+        BigDecimal baseLoanAmount = request.getBaseLoanAmount() != null
+                ? request.getBaseLoanAmount()
+                : result.getLoanAmount();
+
+        result.setBaseLoanAmount(baseLoanAmount);
+        result.setDiscountAmount(discountAmount);
+        result.setDiscountPercent(discountPercent);
     }
 
     private User getCurrentUser() {
@@ -108,6 +214,7 @@ public class CalculationService {
                 .clientId(c.getClient() != null ? c.getClient().getId() : null)
                 .clientName(c.getClient() != null ? c.getClient().getFullName() : null)
                 .title(c.getTitle())
+                .propertyUrl(c.getPropertyUrl())
                 .mode(c.getMode())
                 .paymentType(c.getPaymentType())
                 .loanAmount(c.getLoanAmount())

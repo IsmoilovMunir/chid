@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-add-property-url
+      author: chid
+      changes:
+        - addColumn:
+            tableName: calculations
+            columns:
+              - column:
+                  name: property_url
+                  type: VARCHAR(2000)

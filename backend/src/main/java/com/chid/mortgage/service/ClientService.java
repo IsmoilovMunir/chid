@@ -106,6 +106,7 @@ public class ClientService {
                 .assignedUserId(client.getAssignedUser().getId())
                 .assignedUserName(client.getAssignedUser().getFullName())
                 .createdAt(client.getCreatedAt())
+                .updatedAt(client.getUpdatedAt())
                 .build();
     }
 }

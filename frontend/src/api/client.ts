@@ -21,6 +21,7 @@ export async function submitLead(data: {
   name: string
   phone: string
   consent: boolean
+  calculationId?: number
 }): Promise<void> {
   const response = await fetch(`${API_BASE}/leads`, {
     method: 'POST',
@@ -43,6 +44,23 @@ export async function login(email: string, password: string) {
 
   if (!response.ok) {
     throw new Error('Неверный email или пароль')
+  }
+
+  return response.json()
+}
+
+export interface PublicCalculation {
+  clientName: string | null
+  title: string | null
+  propertyUrl: string | null
+  result: MortgageResponse
+}
+
+export async function fetchPublicCalculation(token: string): Promise<PublicCalculation> {
+  const response = await fetch(`${API_BASE}/calculations/public/${token}`)
+
+  if (!response.ok) {
+    throw new Error('Расчёт не найден')
   }
 
   return response.json()

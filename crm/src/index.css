@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --color-chid-text: #020731;
+  --color-chid-btn: #082f9b;
+  --color-chid-btn-hover: #062a85;
+  --color-chid-accent: #dfb286;
+  --color-chid-accent-muted: #f8f0e6;
+  --color-chid-white: #ffffff;
+  --color-chid-primary: #082f9b;
+  --color-chid-ring: #e8d5bc;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f8f0e6;
+  color: #020731;
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input:focus {
+  border-color: var(--color-chid-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-chid-primary) 15%, transparent);
+}
+
+.input-select {
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  outline: none;
+  background: #fff;
+}
+
+.input-select:focus {
+  border-color: var(--color-chid-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-chid-primary) 15%, transparent);
+}

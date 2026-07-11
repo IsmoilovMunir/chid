@@ -83,6 +83,9 @@ public class MortgageCalculatorService {
     }
 
     private BigDecimal resolveLoanAmount(MortgageCalculationRequest request) {
+        if (request.getLoanAmount() != null && request.getLoanAmount().compareTo(BigDecimal.ZERO) > 0) {
+            return request.getLoanAmount();
+        }
         if (request.getPropertyPrice() != null) {
             BigDecimal downPayment = request.getDownPayment() != null ? request.getDownPayment() : BigDecimal.ZERO;
             if ("PERCENT".equalsIgnoreCase(request.getDownPaymentType())) {

@@ -1,7 +1,19 @@
 import { ChidLogo } from './components/ChidLogo'
 import { MortgageCalculator } from './components/MortgageCalculator'
+import { PublicCalculationPage } from './pages/PublicCalculationPage'
+
+function getPublicCalcToken(): string | null {
+  const match = window.location.pathname.match(/^\/calc\/([^/]+)\/?$/)
+  return match?.[1] ?? null
+}
 
 function App() {
+  const publicToken = getPublicCalcToken()
+
+  if (publicToken) {
+    return <PublicCalculationPage token={publicToken} />
+  }
+
   return (
     <div className="min-h-screen bg-chid-white">
       <header className="border-b border-chid-ring/40 bg-chid-white">
