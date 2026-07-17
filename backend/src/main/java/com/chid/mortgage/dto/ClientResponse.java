@@ -19,6 +19,8 @@ public class ClientResponse {
     private String comment;
     private Long assignedUserId;
     private String assignedUserName;
+    private Long brokerUserId;
+    private String brokerName;
     private Instant createdAt;
     private Instant updatedAt;
 }

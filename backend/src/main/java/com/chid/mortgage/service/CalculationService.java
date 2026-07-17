@@ -107,18 +107,7 @@ public class CalculationService {
 
     @Transactional(readOnly = true)
     public CalculationDetailResponse findById(Long id) {
-        Calculation calculation = getAccessibleCalculation(id);
-        return CalculationDetailResponse.builder()
-                .id(calculation.getId())
-                .clientId(calculation.getClient() != null ? calculation.getClient().getId() : null)
-                .clientName(calculation.getClient() != null ? calculation.getClient().getFullName() : null)
-                .title(calculation.getTitle())
-                .propertyUrl(calculation.getPropertyUrl())
-                .comment(calculation.getComment())
-                .publicToken(calculation.getPublicToken())
-                .createdAt(calculation.getCreatedAt())
-                .result(fromJson(calculation.getScheduleJson()))
-                .build();
+        return toDetail(getAccessibleCalculation(id));
     }
 
     @Transactional(readOnly = true)
@@ -134,7 +123,7 @@ public class CalculationService {
         User currentUser = getCurrentUser();
         List<Calculation> calculations = currentUser.getRole() == UserRole.ADMIN
                 ? calculationRepository.findAllByOrderByCreatedAtDesc()
-                : calculationRepository.findByCreatedByOrderByCreatedAtDesc(currentUser);
+                : calculationRepository.findAccessibleByUser(currentUser);
         return calculations.stream().map(this::toSummary).toList();
     }
 
@@ -155,13 +144,26 @@ public class CalculationService {
                 .orElseThrow(() -> new IllegalArgumentException("Расчёт не найден"));
         User currentUser = getCurrentUser();
 
-        if (currentUser.getRole() != UserRole.ADMIN
-                && (calculation.getCreatedBy() == null
-                || !calculation.getCreatedBy().getId().equals(currentUser.getId()))) {
+        if (!hasCalculationAccess(calculation, currentUser)) {
             throw new IllegalArgumentException("Нет доступа к расчёту");
         }
 
         return calculation;
+    }
+
+    private boolean hasCalculationAccess(Calculation calculation, User currentUser) {
+        if (currentUser.getRole() == UserRole.ADMIN) {
+            return true;
+        }
+        if (calculation.getCreatedBy() != null
+                && calculation.getCreatedBy().getId().equals(currentUser.getId())) {
+            return true;
+        }
+        Client client = calculation.getClient();
+        return client != null
+                && (client.getAssignedUser().getId().equals(currentUser.getId())
+                || (client.getAssignedBroker() != null
+                && client.getAssignedBroker().getId().equals(currentUser.getId())));
     }
 
     private MortgageCalculationResponse calculateAndEnrich(SaveCalculationRequest request) {
@@ -209,10 +211,11 @@ public class CalculationService {
     }
 
     private CalculationSummaryResponse toSummary(Calculation c) {
+        Client client = c.getClient();
         return CalculationSummaryResponse.builder()
                 .id(c.getId())
-                .clientId(c.getClient() != null ? c.getClient().getId() : null)
-                .clientName(c.getClient() != null ? c.getClient().getFullName() : null)
+                .clientId(client != null ? client.getId() : null)
+                .clientName(client != null ? client.getFullName() : null)
                 .title(c.getTitle())
                 .propertyUrl(c.getPropertyUrl())
                 .mode(c.getMode())
@@ -224,6 +227,29 @@ public class CalculationService {
                 .resultOverpayment(c.getResultOverpayment())
                 .publicToken(c.getPublicToken())
                 .createdAt(c.getCreatedAt())
+                .brokerUserId(client != null && client.getAssignedBroker() != null
+                        ? client.getAssignedBroker().getId() : null)
+                .brokerName(client != null && client.getAssignedBroker() != null
+                        ? client.getAssignedBroker().getFullName() : null)
+                .build();
+    }
+
+    private CalculationDetailResponse toDetail(Calculation calculation) {
+        Client client = calculation.getClient();
+        return CalculationDetailResponse.builder()
+                .id(calculation.getId())
+                .clientId(client != null ? client.getId() : null)
+                .clientName(client != null ? client.getFullName() : null)
+                .title(calculation.getTitle())
+                .propertyUrl(calculation.getPropertyUrl())
+                .comment(calculation.getComment())
+                .publicToken(calculation.getPublicToken())
+                .createdAt(calculation.getCreatedAt())
+                .brokerUserId(client != null && client.getAssignedBroker() != null
+                        ? client.getAssignedBroker().getId() : null)
+                .brokerName(client != null && client.getAssignedBroker() != null
+                        ? client.getAssignedBroker().getFullName() : null)
+                .result(fromJson(calculation.getScheduleJson()))
                 .build();
     }
 }

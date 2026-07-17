@@ -29,6 +29,8 @@ public class DataInitializer {
                         .passwordHash(passwordEncoder.encode("admin123"))
                         .fullName("Администратор CHID")
                         .role(UserRole.ADMIN)
+                        .realtor(false)
+                        .broker(false)
                         .build());
                 log.info("Создан тестовый админ: admin@chid.ru / admin123");
             }
@@ -39,8 +41,18 @@ public class DataInitializer {
                         .passwordHash(passwordEncoder.encode("realtor123"))
                         .fullName("Риелтор CHID")
                         .role(UserRole.REALTOR)
+                        .realtor(true)
+                        .broker(true)
                         .build());
                 log.info("Создан тестовый риелтор: realtor@chid.ru / realtor123");
+            } else {
+                userRepository.findByEmail("realtor@chid.ru").ifPresent(user -> {
+                    if (!user.isBroker()) {
+                        user.setBroker(true);
+                        user.setRealtor(true);
+                        userRepository.save(user);
+                    }
+                });
             }
         };
     }

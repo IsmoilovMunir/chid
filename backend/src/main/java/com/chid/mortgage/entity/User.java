@@ -29,9 +29,26 @@ public class User {
     @Column(nullable = false)
     private String fullName;
 
+    @Column(length = 64)
+    private String phone;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean active = true;
+
+    /** Может вести клиентов и сделки */
+    @Builder.Default
+    @Column(name = "is_realtor", nullable = false)
+    private boolean realtor = true;
+
+    /** Может быть назначен брокером на сделку */
+    @Builder.Default
+    @Column(name = "is_broker", nullable = false)
+    private boolean broker = false;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

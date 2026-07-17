@@ -17,5 +17,7 @@ public class CalculationDetailResponse {
     private String comment;
     private String publicToken;
     private Instant createdAt;
+    private Long brokerUserId;
+    private String brokerName;
     private MortgageCalculationResponse result;
 }

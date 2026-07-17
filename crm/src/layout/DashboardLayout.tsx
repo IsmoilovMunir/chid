@@ -12,6 +12,14 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export function DashboardLayout() {
   const { user, logout } = useAuth()
 
+  const roleLabel = (() => {
+    if (user?.role === 'ADMIN') return 'Администратор'
+    const parts: string[] = []
+    if (user?.realtor !== false) parts.push('Риелтор')
+    if (user?.broker) parts.push('Брокер')
+    return parts.length > 0 ? parts.join(' · ') : 'Риелтор'
+  })()
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-chid-ring/50 bg-chid-white">
@@ -31,7 +39,7 @@ export function DashboardLayout() {
           <div className="flex items-center gap-4">
             <div className="text-right text-sm">
               <p className="font-medium text-chid-text">{user?.fullName}</p>
-              <p className="text-chid-text/60">{user?.role === 'ADMIN' ? 'Администратор' : 'Риелтор'}</p>
+              <p className="text-chid-text/60">{roleLabel}</p>
             </div>
             <button
               type="button"

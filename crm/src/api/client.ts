@@ -1,12 +1,17 @@
 import type { MortgageRequest } from '../types/mortgage'
 import type {
+  AdminDashboard,
   AuthUser,
   CalculationDetail,
   CalculationSummary,
   Client,
   ClientRequest,
+  CreateRealtorRequest,
+  RealtorUser,
+  RealtorAccessRequest,
+  UpdateRealtorRequest,
 } from '../types/crm'
-import { getStoredToken } from '../auth/storage'
+import { getStoredToken, clearAuth } from '../auth/storage'
 
 const API_BASE = '/api'
 
@@ -29,6 +34,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
     const message = typeof error.error === 'string' ? error.error : 'Ошибка запроса'
+    // 401 — нет/просрочен токен; 403 на API — нет роли или сессия уже недействительна
+    if (response.status === 401 || response.status === 403) {
+      clearAuth()
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login'
+      }
+    }
     throw new Error(message)
   }
 
@@ -47,10 +59,16 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   })
 
   if (!response.ok) {
-    throw new Error('Неверный email или пароль')
+    const error = await response.json().catch(() => ({}))
+    const message = typeof error.error === 'string' ? error.error : 'Неверный email или пароль'
+    throw new Error(message)
   }
 
   return response.json()
+}
+
+export async function fetchMe(): Promise<Omit<AuthUser, 'token'>> {
+  return request<Omit<AuthUser, 'token'>>('/me')
 }
 
 export async function fetchClients(search?: string): Promise<Client[]> {
@@ -139,6 +157,57 @@ export async function importPropertyListing(data: {
   return request<PropertyImportResult>('/property/import', {
     method: 'POST',
     body: JSON.stringify(data),
+  })
+}
+
+export async function fetchAdminDashboard(): Promise<AdminDashboard> {
+  return request<AdminDashboard>('/admin/dashboard')
+}
+
+export async function fetchRealtors(activeOnly?: boolean): Promise<RealtorUser[]> {
+  const query = activeOnly ? '?activeOnly=true' : ''
+  return request<RealtorUser[]>(`/admin/realtors${query}`)
+}
+
+export async function fetchBrokers(): Promise<RealtorUser[]> {
+  return request<RealtorUser[]>('/brokers')
+}
+
+export async function updateRealtorAccess(
+  id: number,
+  data: RealtorAccessRequest,
+): Promise<RealtorUser> {
+  return request<RealtorUser>(`/admin/realtors/${id}/access`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function createRealtor(data: CreateRealtorRequest): Promise<RealtorUser> {
+  return request<RealtorUser>('/admin/realtors', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateRealtor(id: number, data: UpdateRealtorRequest): Promise<RealtorUser> {
+  return request<RealtorUser>(`/admin/realtors/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function fetchRealtorClients(id: number): Promise<Client[]> {
+  return request<Client[]>(`/admin/realtors/${id}/clients`)
+}
+
+export async function deleteRealtor(
+  id: number,
+  reassignments: { clientId: number; assignToUserId: number }[] = [],
+): Promise<void> {
+  return request<void>(`/admin/realtors/${id}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reassignments }),
   })
 }
 

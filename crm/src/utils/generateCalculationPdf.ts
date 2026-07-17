@@ -3,7 +3,7 @@ import pdfFonts from 'pdfmake/build/vfs_fonts'
 import type { Content, TDocumentDefinitions } from 'pdfmake/interfaces'
 import logoUrl from '../assets/logochid.svg'
 import type { CalculationDetail } from '../types/crm'
-import { CHID_BRAND } from '../constants/brand'
+import { loadBrandSettings } from './brandSettings'
 import { CALCULATION_MODE_LABELS, PAYMENT_TYPE_LABELS } from '../constants/labels'
 import {
   formatMoney,
@@ -96,6 +96,7 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 }
 
 export async function downloadCalculationPdf(calculation: CalculationDetail): Promise<void> {
+  const brand = loadBrandSettings()
   const result = calculation.result
   const logo = await loadSvgAsPngDataUrl(logoUrl)
   const title = calculation.title || `Расчёт #${calculation.id}`
@@ -197,7 +198,7 @@ export async function downloadCalculationPdf(calculation: CalculationDetail): Pr
     footer: (currentPage: number, pageCount: number) => ({
       columns: [
         {
-          text: `${CHID_BRAND.name} · ${CHID_BRAND.website} · ${CHID_BRAND.phone}`,
+          text: `${brand.name} · ${brand.website} · ${brand.phone}`,
           style: 'footer',
           margin: [40, 0, 0, 0] as [number, number, number, number],
         },
@@ -217,10 +218,10 @@ export async function downloadCalculationPdf(calculation: CalculationDetail): Pr
             width: '*',
             alignment: 'right',
             stack: [
-              { text: CHID_BRAND.tagline, fontSize: 9, color: COLORS.muted, margin: [0, 4, 0, 6] },
-              { text: CHID_BRAND.phone, fontSize: 11, bold: true, color: COLORS.primary },
-              { text: CHID_BRAND.website, fontSize: 10, color: COLORS.text, margin: [0, 2, 0, 0] },
-              { text: CHID_BRAND.email, fontSize: 9, color: COLORS.muted, margin: [0, 2, 0, 0] },
+              { text: brand.tagline, fontSize: 9, color: COLORS.muted, margin: [0, 4, 0, 6] },
+              { text: brand.phone, fontSize: 11, bold: true, color: COLORS.primary },
+              { text: brand.website, fontSize: 10, color: COLORS.text, margin: [0, 2, 0, 0] },
+              { text: brand.email, fontSize: 9, color: COLORS.muted, margin: [0, 2, 0, 0] },
             ],
           },
         ],

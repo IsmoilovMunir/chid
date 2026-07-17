@@ -4,8 +4,10 @@ import { fetchCalculations } from '../api/client'
 import type { CalculationSummary } from '../types/crm'
 import { CALCULATION_MODE_LABELS, PAYMENT_TYPE_LABELS } from '../constants/labels'
 import { formatDate, formatMoney, formatTermMonths } from '../utils/format'
+import { useCrmPaths } from '../hooks/useCrmPaths'
 
 export function CalculationsPage() {
+  const paths = useCrmPaths()
   const [calculations, setCalculations] = useState<CalculationSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -25,7 +27,7 @@ export function CalculationsPage() {
           <p className="mt-1 text-sm text-chid-text/60">Сохранённые ипотечные расчёты</p>
         </div>
         <Link
-          to="/calculations/new"
+          to={paths.calculationsNew()}
           className="rounded-lg bg-chid-btn px-5 py-2.5 text-sm font-medium text-white hover:bg-chid-btn-hover"
         >
           + Новый расчёт
@@ -45,6 +47,7 @@ export function CalculationsPage() {
               <tr>
                 <th className="px-4 py-3 font-medium">Название</th>
                 <th className="px-4 py-3 font-medium">Клиент</th>
+                <th className="px-4 py-3 font-medium">Брокер</th>
                 <th className="px-4 py-3 font-medium">Режим</th>
                 <th className="px-4 py-3 font-medium">Сумма кредита</th>
                 <th className="px-4 py-3 font-medium">Платёж</th>
@@ -57,11 +60,12 @@ export function CalculationsPage() {
               {calculations.map((calc) => (
                 <tr key={calc.id} className="hover:bg-chid-accent-muted/40">
                   <td className="px-4 py-3 font-medium">
-                    <Link to={`/calculations/${calc.id}`} className="text-chid-btn hover:underline">
+                    <Link to={paths.calculation(calc.id)} className="text-chid-btn hover:underline">
                       {calc.title || `Расчёт #${calc.id}`}
                     </Link>
                   </td>
                   <td className="px-4 py-3">{calc.clientName || '—'}</td>
+                  <td className="px-4 py-3">{calc.brokerName || '—'}</td>
                   <td className="px-4 py-3">
                     {CALCULATION_MODE_LABELS[calc.mode]}
                     <span className="ml-1 text-chid-text/50">
@@ -75,7 +79,7 @@ export function CalculationsPage() {
                   <td className="px-4 py-3">
                     {calc.publicToken ? (
                       <Link
-                        to={`/calculations/${calc.id}`}
+                        to={paths.calculation(calc.id)}
                         className="text-sm text-chid-btn hover:underline"
                       >
                         Открыть

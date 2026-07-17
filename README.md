@@ -11,10 +11,11 @@
 
 ```
 chid/
-├── backend/     # Spring Boot API
-├── frontend/    # Публичный калькулятор (chid.ru)
-├── crm/         # CRM для риелторов (crm.chid.ru)
-└── docker-compose.yml
+├── backend/     # Spring Boot API (+ Dockerfile)
+├── frontend/    # Публичный сайт (+ Dockerfile)
+├── crm/         # CRM (+ Dockerfile)
+├── infra/       # Docker Compose, nginx, TLS, env
+└── docker-compose.yml   # → infra (локальный Postgres)
 ```
 
 ## Быстрый старт
@@ -23,6 +24,7 @@ chid/
 
 ```bash
 docker compose up -d
+# или: cd infra && make db-up
 ```
 
 БД: `chid_mortgage`, пользователь/пароль: `chid` / `chid`, порт: **5433** (чтобы не конфликтовать с другим PostgreSQL на 5432).  
@@ -48,7 +50,8 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # macOS
 cd backend && ./mvnw-local.sh compile
 ```
 
-API: http://localhost:8080
+API: http://localhost:8080  
+Health: http://localhost:8080/actuator/health
 
 **Тестовые пользователи (dev):**
 - `admin@chid.ru` / `admin123`
@@ -86,6 +89,21 @@ CRM UI: http://localhost:5174
 VITE_PUBLIC_SITE_URL=https://chid.ru
 ```
 
+## Деплой (production)
+
+Всё управление Docker / nginx — из [`infra/`](infra/README.md).
+
+```bash
+cd infra
+cp .env.example .env
+# заполнить POSTGRES_PASSWORD, JWT_SECRET, ADMIN_*
+
+make prod-local   # smoke без TLS, порт 8088
+# make prod-tls   # прод с TLS (certs в infra/certs/)
+```
+
+Подробности: [infra/README.md](infra/README.md).
+
 ## API
 
 | Метод | Endpoint | Доступ |
@@ -97,14 +115,20 @@ VITE_PUBLIC_SITE_URL=https://chid.ru
 | GET | `/api/calculations/{id}` | Авторизация |
 | GET/POST | `/api/calculations` | Авторизация |
 | GET | `/api/calculations/public/{token}` | Публичный |
+| GET | `/actuator/health` | Публичный |
 
 ## Профили Spring
 
 - `dev` (по умолчанию) — PostgreSQL + Liquibase, тестовые пользователи
-- `prod` — PostgreSQL + Liquibase
+- `prod` — PostgreSQL + Liquibase, обязательные `JWT_SECRET` / `DATABASE_*`, bootstrap админа через env
 
 ```bash
-SPRING_PROFILES_ACTIVE=prod ./mvnw-local.sh spring-boot:run
+SPRING_PROFILES_ACTIVE=prod \
+  DATABASE_URL=jdbc:postgresql://localhost:5433/chid_mortgage \
+  DATABASE_USER=chid \
+  DATABASE_PASSWORD=strong-password \
+  JWT_SECRET=your-long-random-secret-at-least-32-chars \
+  ./mvnw-local.sh spring-boot:run
 ```
 
 Миграции: `backend/src/main/resources/db/changelog/`.  

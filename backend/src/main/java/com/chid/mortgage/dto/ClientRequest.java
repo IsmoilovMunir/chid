@@ -18,4 +18,6 @@ public class ClientRequest {
     @NotNull
     private ClientStatus status;
     private String comment;
+    private Long assignedUserId;
+    private Long brokerUserId;
 }

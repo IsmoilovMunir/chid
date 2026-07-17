@@ -25,4 +25,6 @@ public class CalculationSummaryResponse {
     private BigDecimal resultOverpayment;
     private String publicToken;
     private Instant createdAt;
+    private Long brokerUserId;
+    private String brokerName;
 }

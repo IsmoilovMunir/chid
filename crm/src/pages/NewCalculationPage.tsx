@@ -1,8 +1,10 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CrmMortgageCalculator } from '../components/CrmMortgageCalculator'
+import { useCrmPaths } from '../hooks/useCrmPaths'
 
 export function NewCalculationPage() {
   const navigate = useNavigate()
+  const paths = useCrmPaths()
   const [searchParams] = useSearchParams()
   const clientId = searchParams.get('clientId')
 
@@ -12,7 +14,7 @@ export function NewCalculationPage() {
       <p className="mb-6 text-sm text-chid-text/60">Рассчитайте ипотеку и сохраните в CRM</p>
       <CrmMortgageCalculator
         defaultClientId={clientId ? Number(clientId) : undefined}
-        onSaved={(id) => navigate(`/calculations/${id}`)}
+        onSaved={(id) => navigate(paths.calculation(id))}
       />
     </div>
   )

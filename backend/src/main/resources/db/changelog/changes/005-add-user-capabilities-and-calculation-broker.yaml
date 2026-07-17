@@ -1,0 +1,32 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-add-user-capabilities-and-calculation-broker
+      author: chid
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: is_realtor
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_broker
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+        - addColumn:
+            tableName: calculations
+            columns:
+              - column:
+                  name: assigned_broker_user_id
+                  type: BIGINT
+        - addForeignKeyConstraint:
+            baseTableName: calculations
+            baseColumnNames: assigned_broker_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_calculations_assigned_broker

@@ -3,6 +3,7 @@ package com.chid.mortgage.service;
 import com.chid.mortgage.dto.AuthResponse;
 import com.chid.mortgage.dto.LoginRequest;
 import com.chid.mortgage.entity.User;
+import com.chid.mortgage.entity.UserRole;
 import com.chid.mortgage.repository.UserRepository;
 import com.chid.mortgage.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -34,10 +35,29 @@ public class AuthService {
                 .build();
 
         return AuthResponse.builder()
+                .id(user.getId())
                 .token(jwtService.generateToken(userDetails))
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(user.getRole())
+                .realtor(user.getRole() == UserRole.ADMIN || user.isRealtor())
+                .broker(user.isBroker())
+                .build();
+    }
+
+    public AuthResponse me() {
+        String email = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
+
+        return AuthResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .role(user.getRole())
+                .realtor(user.getRole() == UserRole.ADMIN || user.isRealtor())
+                .broker(user.isBroker())
                 .build();
     }
 }

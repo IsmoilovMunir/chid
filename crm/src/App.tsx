@@ -1,7 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
-import { ProtectedRoute } from './auth/ProtectedRoute'
+import { AdminRoute, RealtorRoute } from './auth/RoleRoute'
 import { DashboardLayout } from './layout/DashboardLayout'
+import { AdminLayout } from './layout/AdminLayout'
 import { LoginPage } from './pages/LoginPage'
 import { ClientsPage } from './pages/ClientsPage'
 import { ClientDetailPage } from './pages/ClientDetailPage'
@@ -10,6 +11,9 @@ import { CalculationsPage } from './pages/CalculationsPage'
 import { NewCalculationPage } from './pages/NewCalculationPage'
 import { CalculationDetailPage } from './pages/CalculationDetailPage'
 import { EditCalculationPage } from './pages/EditCalculationPage'
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
+import { AdminSettingsPage } from './pages/admin/AdminSettingsPage'
+import { AdminRealtorsPage } from './pages/admin/AdminRealtorsPage'
 
 export default function App() {
   return (
@@ -19,10 +23,31 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
 
           <Route
+            path="/admin"
             element={
-              <ProtectedRoute>
+              <AdminRoute>
+                <AdminLayout />
+              </AdminRoute>
+            }
+          >
+            <Route index element={<AdminDashboardPage />} />
+            <Route path="realtors" element={<AdminRealtorsPage />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
+            <Route path="crm/clients" element={<ClientsPage />} />
+            <Route path="crm/clients/new" element={<ClientFormPage />} />
+            <Route path="crm/clients/:id" element={<ClientDetailPage />} />
+            <Route path="crm/clients/:id/edit" element={<ClientFormPage />} />
+            <Route path="crm/calculations" element={<CalculationsPage />} />
+            <Route path="crm/calculations/new" element={<NewCalculationPage />} />
+            <Route path="crm/calculations/:id/edit" element={<EditCalculationPage />} />
+            <Route path="crm/calculations/:id" element={<CalculationDetailPage />} />
+          </Route>
+
+          <Route
+            element={
+              <RealtorRoute>
                 <DashboardLayout />
-              </ProtectedRoute>
+              </RealtorRoute>
             }
           >
             <Route index element={<Navigate to="/clients" replace />} />
@@ -36,7 +61,7 @@ export default function App() {
             <Route path="calculations/:id" element={<CalculationDetailPage />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/clients" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

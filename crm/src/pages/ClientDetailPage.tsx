@@ -1,11 +1,33 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { fetchClient, fetchClientCalculations } from '../api/client'
-import type { CalculationSummary, Client } from '../types/crm'
-import { CALCULATION_MODE_LABELS, CLIENT_SOURCE_LABELS, PAYMENT_TYPE_LABELS } from '../constants/labels'
+import {
+  fetchBrokers,
+  fetchClient,
+  fetchClientCalculations,
+  fetchRealtors,
+  updateClient,
+} from '../api/client'
+import type {
+  CalculationSummary,
+  Client,
+  ClientSource,
+  ClientStatus,
+  RealtorUser,
+} from '../types/crm'
+import {
+  CALCULATION_MODE_LABELS,
+  CLIENT_SOURCE_LABELS,
+  CLIENT_STATUS_LABELS,
+  PAYMENT_TYPE_LABELS,
+} from '../constants/labels'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatDate, formatMoney, formatTermMonths } from '../utils/format'
 import { getPublicCalculationUrl } from '../utils/publicLink'
+import { useAuth } from '../auth/AuthContext'
+import { useCrmPaths } from '../hooks/useCrmPaths'
+
+const SOURCES = Object.keys(CLIENT_SOURCE_LABELS) as ClientSource[]
+const STATUSES = Object.keys(CLIENT_STATUS_LABELS) as ClientStatus[]
 
 function InfoItem({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -27,10 +49,23 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 export function ClientDetailPage() {
   const { id } = useParams()
+  const paths = useCrmPaths()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'ADMIN'
   const [client, setClient] = useState<Client | null>(null)
   const [calculations, setCalculations] = useState<CalculationSummary[]>([])
+  const [realtors, setRealtors] = useState<RealtorUser[]>([])
+  const [brokersList, setBrokersList] = useState<RealtorUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [editingWork, setEditingWork] = useState(false)
+  const [source, setSource] = useState<ClientSource>('CALL')
+  const [status, setStatus] = useState<ClientStatus>('NEW')
+  const [assignedUserId, setAssignedUserId] = useState<number | ''>('')
+  const [brokerUserId, setBrokerUserId] = useState<number | ''>('')
+  const [workSaving, setWorkSaving] = useState(false)
+  const [workError, setWorkError] = useState('')
+  const [workSuccess, setWorkSuccess] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -40,10 +75,70 @@ export function ClientDetailPage() {
       .then(([clientData, calcData]) => {
         setClient(clientData)
         setCalculations(calcData)
+        setSource(clientData.source)
+        setStatus(clientData.status)
+        setAssignedUserId(clientData.assignedUserId)
+        setBrokerUserId(clientData.brokerUserId ?? '')
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Ошибка загрузки'))
       .finally(() => setLoading(false))
-  }, [id])
+
+    fetchBrokers()
+      .then(setBrokersList)
+      .catch(() => {})
+
+    if (isAdmin) {
+      fetchRealtors(true)
+        .then((list) => setRealtors(list.filter((r) => r.realtor)))
+        .catch(() => {})
+    }
+  }, [id, isAdmin])
+
+  const startEditWork = () => {
+    if (!client) return
+    setSource(client.source)
+    setStatus(client.status)
+    setAssignedUserId(client.assignedUserId)
+    setBrokerUserId(client.brokerUserId ?? '')
+    setWorkError('')
+    setWorkSuccess('')
+    setEditingWork(true)
+  }
+
+  const cancelEditWork = () => {
+    setEditingWork(false)
+    setWorkError('')
+  }
+
+  const saveWorkSection = async () => {
+    if (!client) return
+    setWorkSaving(true)
+    setWorkError('')
+    setWorkSuccess('')
+
+    try {
+      const updated = await updateClient(client.id, {
+        fullName: client.fullName,
+        phone: client.phone,
+        email: client.email ?? undefined,
+        source,
+        status,
+        comment: client.comment ?? undefined,
+        assignedUserId: isAdmin && assignedUserId ? Number(assignedUserId) : undefined,
+        brokerUserId: brokerUserId ? Number(brokerUserId) : null,
+      })
+      setClient(updated)
+      const calcs = await fetchClientCalculations(client.id)
+      setCalculations(calcs)
+
+      setWorkSuccess('Сохранено')
+      setEditingWork(false)
+    } catch (err) {
+      setWorkError(err instanceof Error ? err.message : 'Ошибка сохранения')
+    } finally {
+      setWorkSaving(false)
+    }
+  }
 
   if (loading) return <p className="text-chid-text/60">Загрузка…</p>
   if (error) return <p className="text-red-600">{error}</p>
@@ -54,7 +149,7 @@ export function ClientDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/clients" className="text-sm text-chid-btn hover:underline">
+      <Link to={paths.clients} className="text-sm text-chid-btn hover:underline">
         ← К списку клиентов
       </Link>
 
@@ -63,6 +158,11 @@ export function ClientDetailPage() {
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold text-chid-text">{client.fullName}</h1>
             <StatusBadge status={client.status} />
+            {user?.id && client.brokerUserId === user.id && (
+              <span className="rounded bg-chid-accent-muted px-2 py-0.5 text-xs font-medium text-chid-text/70">
+                вы брокер
+              </span>
+            )}
           </div>
           <p className="mt-2 text-sm text-chid-text/60">
             В CRM с {formatDate(client.createdAt)}
@@ -73,13 +173,13 @@ export function ClientDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            to={`/calculations/new?clientId=${client.id}`}
+            to={paths.calculationsNew(client.id)}
             className="rounded-lg bg-chid-btn px-5 py-2.5 text-sm font-medium text-white hover:bg-chid-btn-hover"
           >
             + Новый расчёт
           </Link>
           <Link
-            to={`/clients/${client.id}/edit`}
+            to={paths.clientEdit(client.id)}
             className="rounded-lg px-5 py-2.5 text-sm font-medium text-chid-text ring-1 ring-chid-ring/60 hover:bg-chid-accent-muted"
           >
             Редактировать
@@ -125,15 +225,138 @@ export function ClientDetailPage() {
         </section>
 
         <section className="rounded-2xl bg-chid-white p-6 shadow-sm ring-1 ring-chid-ring/40">
-          <h2 className="text-lg font-semibold text-chid-text">Работа с клиентом</h2>
-          <div className="mt-4 grid gap-5 sm:grid-cols-2">
-            <InfoItem label="Источник">{CLIENT_SOURCE_LABELS[client.source]}</InfoItem>
-            <InfoItem label="Ответственный риелтор">{client.assignedUserName}</InfoItem>
-            <InfoItem label="Статус">
-              <StatusBadge status={client.status} />
-            </InfoItem>
-            <InfoItem label="ID клиента">#{client.id}</InfoItem>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-chid-text">Работа с клиентом</h2>
+            {!editingWork ? (
+              <button
+                type="button"
+                onClick={startEditWork}
+                className="text-sm font-medium text-chid-btn hover:underline"
+              >
+                Изменить
+              </button>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={cancelEditWork}
+                  className="rounded-lg px-3 py-1.5 text-sm text-chid-text/70 ring-1 ring-chid-ring/50 hover:bg-chid-accent-muted"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={saveWorkSection}
+                  disabled={workSaving}
+                  className="rounded-lg bg-chid-btn px-3 py-1.5 text-sm font-medium text-white hover:bg-chid-btn-hover disabled:opacity-50"
+                >
+                  {workSaving ? 'Сохранение…' : 'Сохранить'}
+                </button>
+              </div>
+            )}
           </div>
+
+          {editingWork ? (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium">Источник</label>
+                <select
+                  className="input-select w-full"
+                  value={source}
+                  onChange={(e) => setSource(e.target.value as ClientSource)}
+                >
+                  {SOURCES.map((value) => (
+                    <option key={value} value={value}>
+                      {CLIENT_SOURCE_LABELS[value]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium">Статус</label>
+                <select
+                  className="input-select w-full"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as ClientStatus)}
+                >
+                  {STATUSES.map((value) => (
+                    <option key={value} value={value}>
+                      {CLIENT_STATUS_LABELS[value]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium">Ответственный риелтор</label>
+                {isAdmin ? (
+                  <select
+                    className="input-select w-full"
+                    value={assignedUserId}
+                    onChange={(e) =>
+                      setAssignedUserId(e.target.value ? Number(e.target.value) : '')
+                    }
+                    required
+                  >
+                    <option value="">Выберите риелтора</option>
+                    {realtors.map((realtor) => (
+                      <option key={realtor.id} value={realtor.id}>
+                        {realtor.fullName}
+                        {realtor.phone ? ` · ${realtor.phone}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="rounded-lg bg-chid-accent-muted/40 px-3 py-2.5 text-sm">
+                    {client.assignedUserName}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium">Брокер клиента</label>
+                <select
+                  className="input-select w-full"
+                  value={brokerUserId}
+                  onChange={(e) =>
+                    setBrokerUserId(e.target.value ? Number(e.target.value) : '')
+                  }
+                >
+                  <option value="">Без брокера</option>
+                  {brokersList.map((broker) => (
+                    <option key={broker.id} value={broker.id}>
+                      {broker.fullName}
+                      {broker.phone ? ` · ${broker.phone}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-xs text-chid-text/45">
+                  Один брокер на клиента — для всех расчётов
+                </p>
+              </div>
+
+              <div>
+                <p className="mb-2 text-sm font-medium text-chid-text/45">ID клиента</p>
+                <p className="text-sm font-medium text-chid-text">#{client.id}</p>
+              </div>
+
+              {workError && <p className="sm:col-span-2 text-sm text-red-600">{workError}</p>}
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-5 sm:grid-cols-2">
+              <InfoItem label="Источник">{CLIENT_SOURCE_LABELS[client.source]}</InfoItem>
+              <InfoItem label="Ответственный риелтор">{client.assignedUserName}</InfoItem>
+              <InfoItem label="Брокер клиента">{client.brokerName || '—'}</InfoItem>
+              <InfoItem label="Статус">
+                <StatusBadge status={client.status} />
+              </InfoItem>
+              <InfoItem label="ID клиента">#{client.id}</InfoItem>
+              {workSuccess && (
+                <p className="sm:col-span-2 text-sm text-green-700">{workSuccess}</p>
+              )}
+            </div>
+          )}
         </section>
       </div>
 
@@ -155,7 +378,7 @@ export function ClientDetailPage() {
             </p>
           </div>
           <Link
-            to={`/calculations/new?clientId=${client.id}`}
+            to={paths.calculationsNew(client.id)}
             className="rounded-lg px-4 py-2 text-sm font-medium text-chid-btn ring-1 ring-chid-ring/60 hover:bg-chid-accent-muted"
           >
             Добавить расчёт
@@ -166,7 +389,7 @@ export function ClientDetailPage() {
           <div className="px-6 py-12 text-center">
             <p className="text-chid-text/60">У клиента пока нет сохранённых расчётов</p>
             <Link
-              to={`/calculations/new?clientId=${client.id}`}
+              to={paths.calculationsNew(client.id)}
               className="mt-4 inline-block rounded-lg bg-chid-btn px-5 py-2.5 text-sm font-medium text-white hover:bg-chid-btn-hover"
             >
               Создать первый расчёт
@@ -178,6 +401,7 @@ export function ClientDetailPage() {
               <thead className="bg-chid-accent-muted text-left text-chid-text/70">
                 <tr>
                   <th className="px-4 py-3 font-medium">Название</th>
+                  <th className="px-4 py-3 font-medium">Брокер</th>
                   <th className="px-4 py-3 font-medium">Режим</th>
                   <th className="px-4 py-3 font-medium">Сумма кредита</th>
                   <th className="px-4 py-3 font-medium">Платёж</th>
@@ -193,9 +417,12 @@ export function ClientDetailPage() {
                 {calculations.map((calc) => (
                   <tr key={calc.id} className="hover:bg-chid-accent-muted/30">
                     <td className="px-4 py-3 font-medium">
-                      <Link to={`/calculations/${calc.id}`} className="text-chid-btn hover:underline">
+                      <Link to={paths.calculation(calc.id)} className="text-chid-btn hover:underline">
                         {calc.title || `Расчёт #${calc.id}`}
                       </Link>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {calc.brokerName || <span className="text-chid-text/40">—</span>}
                     </td>
                     <td className="px-4 py-3">
                       {CALCULATION_MODE_LABELS[calc.mode]}
@@ -232,7 +459,7 @@ export function ClientDetailPage() {
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         <Link
-                          to={`/calculations/${calc.id}`}
+                          to={paths.calculation(calc.id)}
                           className="text-chid-btn hover:underline"
                         >
                           Открыть

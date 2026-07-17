@@ -3,8 +3,12 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ChidLogo } from '../components/ChidLogo'
 import { useAuth } from '../auth/AuthContext'
 
+function defaultPathForRole(role?: string): string {
+  return role === 'ADMIN' ? '/admin' : '/clients'
+}
+
 export function LoginPage() {
-  const { login, isAuthenticated } = useAuth()
+  const { login, isAuthenticated, user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
@@ -12,10 +16,10 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const from = (location.state as { from?: string } | null)?.from ?? '/clients'
+  const from = (location.state as { from?: string } | null)?.from
 
   if (isAuthenticated) {
-    return <Navigate to={from} replace />
+    return <Navigate to={from ?? defaultPathForRole(user?.role)} replace />
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,8 +27,12 @@ export function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      await login(email, password)
-      navigate(from, { replace: true })
+      const authUser = await login(email, password)
+      const target =
+        from && !(from.startsWith('/admin') && authUser.role !== 'ADMIN')
+          ? from
+          : defaultPathForRole(authUser.role)
+      navigate(target, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка входа')
     } finally {
@@ -40,7 +48,9 @@ export function LoginPage() {
         </div>
 
         <h1 className="text-center text-2xl font-bold text-chid-text">CRM CHID</h1>
-        <p className="mt-2 text-center text-sm text-chid-text/60">Вход для риелторов</p>
+        <p className="mt-2 text-center text-sm text-chid-text/60">
+          Вход для риелторов и администраторов
+        </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>
@@ -50,7 +60,7 @@ export function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="realtor@chid.ru"
+              placeholder="admin@chid.ru"
               required
               autoComplete="email"
             />

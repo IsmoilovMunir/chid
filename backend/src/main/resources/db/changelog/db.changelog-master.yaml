@@ -5,3 +5,15 @@ databaseChangeLog:
   - include:
       file: changes/002-add-property-url.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changes/003-add-user-phone.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/004-add-user-active.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/005-add-user-capabilities-and-calculation-broker.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/006-move-broker-to-client.yaml
+      relativeToChangelogFile: true

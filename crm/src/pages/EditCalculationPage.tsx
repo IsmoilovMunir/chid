@@ -4,10 +4,12 @@ import { fetchCalculation } from '../api/client'
 import type { CalculationDetail } from '../types/crm'
 import { CrmMortgageCalculator } from '../components/CrmMortgageCalculator'
 import { discountFromApi } from '../utils/discount'
+import { useCrmPaths } from '../hooks/useCrmPaths'
 
 export function EditCalculationPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const paths = useCrmPaths()
   const [calculation, setCalculation] = useState<CalculationDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -32,7 +34,7 @@ export function EditCalculationPage() {
 
   return (
     <div>
-      <Link to={`/calculations/${calculation.id}`} className="text-sm text-chid-btn hover:underline">
+      <Link to={paths.calculation(calculation.id)} className="text-sm text-chid-btn hover:underline">
         ← К расчёту
       </Link>
 
@@ -53,7 +55,7 @@ export function EditCalculationPage() {
         defaultComment={calculation.comment ?? ''}
         defaultDiscountValue={restoredDiscount.value}
         defaultDiscountType={restoredDiscount.type}
-        onSaved={(savedId) => navigate(`/calculations/${savedId}`)}
+        onSaved={(savedId) => navigate(paths.calculation(savedId))}
       />
     </div>
   )

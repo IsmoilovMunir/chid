@@ -5,6 +5,7 @@ import com.chid.mortgage.dto.ClientResponse;
 import com.chid.mortgage.entity.Client;
 import com.chid.mortgage.entity.User;
 import com.chid.mortgage.entity.UserRole;
+import com.chid.mortgage.repository.CalculationRepository;
 import com.chid.mortgage.repository.ClientRepository;
 import com.chid.mortgage.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,8 @@ import java.util.List;
 public class ClientService {
 
     private final ClientRepository clientRepository;
+    private final CalculationRepository calculationRepository;
+    private final BrokerService brokerService;
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
@@ -31,7 +34,7 @@ public class ClientService {
                     ? clientRepository.findByFullNameContainingIgnoreCaseOrPhoneContaining(search, search)
                     : clientRepository.findAllByOrderByCreatedAtDesc();
         } else {
-            clients = clientRepository.findByAssignedUserOrderByCreatedAtDesc(currentUser).stream()
+            clients = clientRepository.findAccessibleByUser(currentUser).stream()
                     .filter(c -> search == null || search.isBlank()
                             || c.getFullName().toLowerCase().contains(search.toLowerCase())
                             || c.getPhone().contains(search))
@@ -57,7 +60,8 @@ public class ClientService {
                 .source(request.getSource())
                 .status(request.getStatus())
                 .comment(request.getComment())
-                .assignedUser(currentUser)
+                .assignedUser(resolveAssignedUser(request, currentUser))
+                .assignedBroker(brokerService.resolveActiveBroker(request.getBrokerUserId()))
                 .build();
 
         return toResponse(clientRepository.save(client));
@@ -66,12 +70,21 @@ public class ClientService {
     @Transactional
     public ClientResponse update(Long id, ClientRequest request) {
         Client client = getAccessibleClient(id);
+        User currentUser = getCurrentUser();
         client.setFullName(request.getFullName());
         client.setPhone(request.getPhone());
         client.setEmail(request.getEmail());
         client.setSource(request.getSource());
         client.setStatus(request.getStatus());
         client.setComment(request.getComment());
+        client.setAssignedBroker(brokerService.resolveActiveBroker(request.getBrokerUserId()));
+        if (currentUser.getRole() == UserRole.ADMIN && request.getAssignedUserId() != null) {
+            User newAssignee = resolveAssignedUser(request, currentUser);
+            if (!client.getAssignedUser().getId().equals(newAssignee.getId())) {
+                client.setAssignedUser(newAssignee);
+                calculationRepository.reassignCalculationsForClient(client, newAssignee);
+            }
+        }
         return toResponse(clientRepository.save(client));
     }
 
@@ -81,7 +94,9 @@ public class ClientService {
         User currentUser = getCurrentUser();
 
         if (currentUser.getRole() != UserRole.ADMIN
-                && !client.getAssignedUser().getId().equals(currentUser.getId())) {
+                && !client.getAssignedUser().getId().equals(currentUser.getId())
+                && (client.getAssignedBroker() == null
+                || !client.getAssignedBroker().getId().equals(currentUser.getId()))) {
             throw new IllegalArgumentException("Нет доступа к клиенту");
         }
 
@@ -92,6 +107,27 @@ public class ClientService {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("Пользователь не найден"));
+    }
+
+    private User resolveAssignedUser(ClientRequest request, User currentUser) {
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            return currentUser;
+        }
+        if (request.getAssignedUserId() == null) {
+            throw new IllegalArgumentException("Укажите риелтора");
+        }
+        User assignee = userRepository.findById(request.getAssignedUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Риелтор не найден"));
+        if (assignee.getRole() != UserRole.REALTOR) {
+            throw new IllegalArgumentException("Клиент можно назначить только риелтору");
+        }
+        if (!assignee.isRealtor()) {
+            throw new IllegalArgumentException("Сотрудник не ведёт сделки — нельзя назначить клиента");
+        }
+        if (!assignee.isActive()) {
+            throw new IllegalArgumentException("Нельзя назначить клиента неактивному риелтору");
+        }
+        return assignee;
     }
 
     private ClientResponse toResponse(Client client) {
@@ -105,6 +141,8 @@ public class ClientService {
                 .comment(client.getComment())
                 .assignedUserId(client.getAssignedUser().getId())
                 .assignedUserName(client.getAssignedUser().getFullName())
+                .brokerUserId(client.getAssignedBroker() != null ? client.getAssignedBroker().getId() : null)
+                .brokerName(client.getAssignedBroker() != null ? client.getAssignedBroker().getFullName() : null)
                 .createdAt(client.getCreatedAt())
                 .updatedAt(client.getUpdatedAt())
                 .build();

@@ -40,6 +40,11 @@ public class Client {
     @JoinColumn(name = "assigned_user_id", nullable = false)
     private User assignedUser;
 
+    /** Один брокер на клиента — общий для всех расчётов */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_broker_user_id")
+    private User assignedBroker;
+
     @Column(length = 2000)
     private String comment;
 

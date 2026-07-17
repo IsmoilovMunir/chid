@@ -1,15 +1,3 @@
-services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: chid-postgres
-    environment:
-      POSTGRES_DB: chid_mortgage
-      POSTGRES_USER: chid
-      POSTGRES_PASSWORD: chid
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
+# Dev convenience: local Postgres lives in infra/
+include:
+  - path: infra/docker-compose.dev.yml

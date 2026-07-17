@@ -1,0 +1,34 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-move-broker-to-client
+      author: chid
+      changes:
+        - addColumn:
+            tableName: clients
+            columns:
+              - column:
+                  name: assigned_broker_user_id
+                  type: BIGINT
+        - addForeignKeyConstraint:
+            baseTableName: clients
+            baseColumnNames: assigned_broker_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_clients_assigned_broker
+        - sql:
+            sql: >
+              UPDATE clients c
+              SET assigned_broker_user_id = sub.broker_id
+              FROM (
+                SELECT DISTINCT ON (client_id) client_id, assigned_broker_user_id AS broker_id
+                FROM calculations
+                WHERE client_id IS NOT NULL AND assigned_broker_user_id IS NOT NULL
+                ORDER BY client_id, created_at DESC
+              ) sub
+              WHERE c.id = sub.client_id
+        - dropForeignKeyConstraint:
+            baseTableName: calculations
+            constraintName: fk_calculations_assigned_broker
+        - dropColumn:
+            tableName: calculations
+            columnName: assigned_broker_user_id

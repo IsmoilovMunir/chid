@@ -7,8 +7,11 @@ import lombok.Data;
 @Data
 @Builder
 public class AuthResponse {
+    private Long id;
     private String token;
     private String email;
     private String fullName;
     private UserRole role;
+    private boolean realtor;
+    private boolean broker;
 }

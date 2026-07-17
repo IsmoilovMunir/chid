@@ -39,7 +39,7 @@ export function SaveCalculationPanel({
   discountType = 'AMOUNT',
   onSaved,
 }: SaveCalculationPanelProps) {
-  const [clients, setClients] = useState<{ id: number; fullName: string }[]>([])
+  const [clients, setClients] = useState<{ id: number; fullName: string; brokerName: string | null }[]>([])
   const [clientId, setClientId] = useState(defaultClientId ? String(defaultClientId) : '')
   const [comment, setComment] = useState(defaultComment)
   const [saving, setSaving] = useState(false)
@@ -49,7 +49,11 @@ export function SaveCalculationPanel({
 
   useEffect(() => {
     fetchClients()
-      .then((data) => setClients(data.map((c) => ({ id: c.id, fullName: c.fullName }))))
+      .then((data) =>
+        setClients(
+          data.map((c) => ({ id: c.id, fullName: c.fullName, brokerName: c.brokerName })),
+        ),
+      )
       .catch(() => {})
   }, [])
 
@@ -60,6 +64,8 @@ export function SaveCalculationPanel({
   useEffect(() => {
     setComment(defaultComment)
   }, [defaultComment])
+
+  const selectedClient = clients.find((c) => String(c.id) === clientId)
 
   const handleSave = async () => {
     setSaving(true)
@@ -105,8 +111,7 @@ export function SaveCalculationPanel({
         {isEdit ? 'Сохранить изменения' : 'Сохранить в CRM'}
       </h3>
       <p className="mt-1 text-sm text-chid-text/60">
-        Укажите клиента, квартиру и ссылку на карточку в ЖК — данные сохранятся для агента и
-        отобразятся на публичной ссылке
+        У клиента один риелтор и один брокер на все расчёты. Брокера назначают в карточке клиента.
       </p>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -124,6 +129,11 @@ export function SaveCalculationPanel({
               </option>
             ))}
           </select>
+          {selectedClient?.brokerName && (
+            <p className="mt-1.5 text-xs text-chid-text/55">
+              Брокер клиента: {selectedClient.brokerName}
+            </p>
+          )}
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium">Квартира</label>
@@ -145,9 +155,6 @@ export function SaveCalculationPanel({
           onChange={(e) => onPropertyUrlChange(e.target.value)}
           placeholder="https://zhk.example.ru/flats/123"
         />
-        <p className="mt-1.5 text-xs text-chid-text/45">
-          Сохраняется в CRM и отображается на публичной ссылке для клиента
-        </p>
       </div>
 
       <div className="mt-4">
