@@ -1,9 +1,9 @@
 # Production / smoke stack — managed from infra/
 #
-# TLS:   docker compose -f docker-compose.prod.yml --env-file .env --profile tls up -d --build
-# Local: docker compose -f docker-compose.prod.yml --env-file .env --profile local up -d --build
+# Local build:  make prod-local
+# CD deploy:    IMAGE_TAG=<sha> make deploy-tls   (pull from GHCR, no build)
 #
-# App Dockerfiles stay in ../backend, ../frontend, ../crm
+# Override full image refs via BACKEND_IMAGE / FRONTEND_IMAGE / CRM_IMAGE if needed.
 
 services:
   postgres:
@@ -25,6 +25,7 @@ services:
       - chid
 
   backend:
+    image: ghcr.io/ismoilovmunir/chid-backend:${IMAGE_TAG:-local}
     build:
       context: ../backend
       dockerfile: Dockerfile
@@ -54,6 +55,7 @@ services:
       - chid
 
   frontend:
+    image: ghcr.io/ismoilovmunir/chid-frontend:${IMAGE_TAG:-local}
     build:
       context: ../frontend
       dockerfile: Dockerfile
@@ -63,6 +65,7 @@ services:
       - chid
 
   crm:
+    image: ghcr.io/ismoilovmunir/chid-crm:${IMAGE_TAG:-local}
     build:
       context: ../crm
       dockerfile: Dockerfile

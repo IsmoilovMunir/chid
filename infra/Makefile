@@ -1,4 +1,6 @@
-.PHONY: db-up db-down prod-local prod-tls down logs ps
+.PHONY: db-up db-down prod-local prod-tls deploy-tls deploy-local down logs ps pull
+
+COMPOSE_PROD=docker compose -f docker-compose.prod.yml --env-file .env
 
 # Local Postgres for IDE / mvn / npm run dev
 db-up:
@@ -7,13 +9,28 @@ db-up:
 db-down:
 	docker compose -f docker-compose.dev.yml down
 
-# Full stack without TLS (http://localhost:8088)
+# Full stack without TLS — build images locally
 prod-local:
-	docker compose -f docker-compose.prod.yml --env-file .env --profile local up -d --build
+	$(COMPOSE_PROD) --profile local up -d --build
 
-# Full stack with TLS (needs certs in ./certs or SSL_CERTS_DIR)
+# Full stack with TLS — build images locally
 prod-tls:
-	docker compose -f docker-compose.prod.yml --env-file .env --profile tls up -d --build
+	$(COMPOSE_PROD) --profile tls up -d --build
+
+# Pull GHCR images (IMAGE_TAG required) and restart — used by CD / manual deploy
+pull:
+	@test -n "$(IMAGE_TAG)" || (echo "Set IMAGE_TAG=<sha|latest>"; exit 1)
+	$(COMPOSE_PROD) --profile tls pull backend frontend crm
+
+deploy-tls:
+	@test -n "$(IMAGE_TAG)" || (echo "Set IMAGE_TAG=<sha|latest>"; exit 1)
+	$(COMPOSE_PROD) --profile tls pull backend frontend crm
+	$(COMPOSE_PROD) --profile tls up -d
+
+deploy-local:
+	@test -n "$(IMAGE_TAG)" || (echo "Set IMAGE_TAG=<sha|latest>"; exit 1)
+	$(COMPOSE_PROD) --profile local pull backend frontend crm
+	$(COMPOSE_PROD) --profile local up -d
 
 down:
 	docker compose -f docker-compose.prod.yml --profile local --profile tls down

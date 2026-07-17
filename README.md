@@ -91,18 +91,17 @@ VITE_PUBLIC_SITE_URL=https://chid.ru
 
 ## Деплой (production)
 
-Всё управление Docker / nginx — из [`infra/`](infra/README.md).
+Всё управление Docker / nginx / CI — из [`infra/`](infra/README.md).
 
 ```bash
 cd infra
 cp .env.example .env
-# заполнить POSTGRES_PASSWORD, JWT_SECRET, ADMIN_*
-
-make prod-local   # smoke без TLS, порт 8088
-# make prod-tls   # прод с TLS (certs в infra/certs/)
+make prod-local   # локальный smoke
+# make prod-tls   # прод с TLS
 ```
 
-Подробности: [infra/README.md](infra/README.md).
+CI/CD: `.github/workflows/ci.yml` + `cd.yml` (образы → GHCR, деплой по SSH).  
+Секреты и шаги: [infra/README.md](infra/README.md).
 
 ## API
 
