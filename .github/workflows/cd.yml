@@ -9,6 +9,10 @@ on:
         description: Deploy to server after pushing images
         type: boolean
         default: true
+      sync_infra:
+        description: Sync infra/ files to server before deploy
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -81,28 +85,43 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
-    name: Deploy to server
+    name: Deploy infra to server
     needs: build-and-push
     runs-on: ubuntu-latest
     if: >
       github.event_name == 'workflow_dispatch' && inputs.deploy == true
       || (github.event_name == 'push' && vars.AUTO_DEPLOY == 'true')
     steps:
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+      - uses: actions/checkout@v4
+
+      - name: Sync infra/ to server
+        if: github.event_name != 'workflow_dispatch' || inputs.sync_infra == true
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
-          envs: IMAGE_TAG
+          source: "infra/docker-compose.prod.yml,infra/docker-compose.dev.yml,infra/Makefile,infra/.env.example,infra/nginx/*,infra/scripts/*"
+          target: ${{ secrets.DEPLOY_PATH }}
+          strip_components: 1
+          overwrite: true
+
+      - name: Deploy via infra/scripts/deploy.sh
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          GHCR_USER: ${{ secrets.GHCR_USER }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          DEPLOY_PROFILE: tls
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
+          envs: IMAGE_TAG,GHCR_USER,GHCR_TOKEN,DEPLOY_PROFILE
           script: |
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
-            export IMAGE_TAG
-            docker compose -f docker-compose.prod.yml --env-file .env --profile tls pull backend frontend crm
-            docker compose -f docker-compose.prod.yml --env-file .env --profile tls up -d
-            docker image prune -f
+            chmod +x scripts/deploy.sh
+            ./scripts/deploy.sh
