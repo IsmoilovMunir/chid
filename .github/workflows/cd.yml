@@ -78,10 +78,10 @@ jobs:
           context: ./crm
           push: true
           build-args: |
-            VITE_PUBLIC_SITE_URL=https://chid.ru
+            VITE_PUBLIC_SITE_URL=https://chid.pro
             VITE_CHID_PHONE=+7 (495) 000-00-00
             VITE_CHID_PHONE_HREF=+74950000000
-            VITE_CHID_EMAIL=info@chid.ru
+            VITE_CHID_EMAIL=info@chid.pro
           tags: |
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/chid-crm:${{ steps.meta.outputs.tag }}
             ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/chid-crm:latest
